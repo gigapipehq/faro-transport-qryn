@@ -1,0 +1,36 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "extends": ["airbnb", "airbnb-typescript", "prettier"],
+  "plugins": ["simple-import-sort"],
+  "rules": {
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error",
+    "import/first": "error",
+    "import/newline-after-import": "error",
+    "import/no-duplicates": "error",
+    "import/prefer-default-export": "off",
+    "import/no-cycle": "warn",
+    "@typescript-eslint/no-use-before-define": ["error", { "functions": false }],
+    "no-nested-ternary": "off",
+    "radix": ["error", "as-needed"],
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "varsIgnorePattern": "^_",
+        "args": "after-used",
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ]
+  },
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {}
+    }
+  }
+}

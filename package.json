@@ -1,0 +1,67 @@
+{
+  "name": "@gigapipe/faro-transport-qryn",
+  "version": "1.0.0",
+  "description": "Faro transport which converts the Faro data model to the qryn APIs data models.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "keywords": [
+    "observability",
+    "apm",
+    "rum",
+    "logs",
+    "traces",
+    "metrics",
+    "qryn"
+  ],
+  "scripts": {
+    "build": "tsc && tsup --dts-resolve",
+    "build:watch": "tsup --watch",
+    "check": "tsc -noEmit",
+    "prepare": "husky install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gigapipehq/faro-transport-qryn.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gigapipehq/faro-transport-qryn/issues"
+  },
+  "homepage": "https://github.com/gigapipehq/faro-transport-qryn#readme",
+  "devDependencies": {
+    "@commitlint/cli": "^17.6.1",
+    "@commitlint/config-conventional": "^17.6.1",
+    "@typescript-eslint/eslint-plugin": "^5.59.1",
+    "@typescript-eslint/parser": "^5.59.1",
+    "eslint": "^8.39.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-typescript": "^17.0.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-import-resolver-typescript": "^3.5.5",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-simple-import-sort": "^10.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.2",
+    "prettier": "^2.8.8",
+    "sort-package-json": "^2.4.1",
+    "tsup": "^6.7.0",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@grafana/faro-core": "^1.0.5"
+  }
+}
