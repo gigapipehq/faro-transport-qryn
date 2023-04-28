@@ -1,8 +1,8 @@
-export interface QrynLokiTransportRequestOptions extends Omit<RequestInit, 'body' | 'headers'> {
+export type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
 }
 
-export interface QrynLokiTransportOptions {
+export type QrynLokiTransportOptions = {
   /**
    * The qryn Cloud host URL
    */

@@ -1,7 +1,11 @@
-import { LogRecord } from './transform/types'
+import type { LogLabels, LogValue } from './transform/types'
 
-export interface QrynTransportPayload {
-  readonly resourceLogs: Readonly<{ streams: LogRecord[] }>
+export type LogRecord = {
+  stream: LogLabels
+  values: LogValue[]
+}
+export type QrynTransportPayload = {
+  resourceLogs: { streams: LogRecord[] }
   // Making it optional for now until we add support for traces
-  readonly resourceSpans?: Readonly<unknown[]>
+  // resourceSpans?: unknown
 }

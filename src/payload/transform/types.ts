@@ -1,9 +1,9 @@
 import {
-  EventEvent,
-  ExceptionEvent,
-  LogEvent,
-  MeasurementEvent,
-  TransportItem,
+  type EventEvent,
+  type ExceptionEvent,
+  type LogEvent,
+  type MeasurementEvent,
+  type TransportItem,
   TransportItemType,
 } from '@grafana/faro-core'
 
@@ -15,10 +15,6 @@ export type LogTransportItem =
 
 export type LogLabels = Record<string, string>
 export type LogValue = [string, string]
-export type LogRecord = {
-  stream: LogLabels
-  values: LogValue[]
-}
 
 export type LogsTransform = {
   toLogValue: (transportItem: LogTransportItem) => LogValue | undefined

@@ -1,9 +1,8 @@
-import { InternalLogger, TransportItem, TransportItemType } from '@grafana/faro-core'
+import { type InternalLogger, type TransportItem, TransportItemType } from '@grafana/faro-core'
 import compare from 'just-compare'
 
-import { getLogTransforms } from './transform'
-import { LogsTransform, LogTransportItem } from './transform/types'
-import { QrynTransportPayload } from './types'
+import { getLogTransforms, type LogsTransform, type LogTransportItem } from './transform'
+import type { QrynTransportPayload } from './types'
 
 export class QrynPayload {
   private resourceLogs = { streams: [] } as QrynTransportPayload['resourceLogs']
@@ -78,10 +77,11 @@ export class QrynPayload {
     }
   }
 
-  static hasPayload(payload: QrynTransportPayload['resourceLogs']): boolean {
-    if (payload && payload.streams.length > 0) {
+  static hasPayload(value: any): boolean {
+    if (value && value.streams && value.streams.length > 0) {
       return true
     }
+
     return false
   }
 }

@@ -2,18 +2,19 @@
 import {
   BaseTransport,
   createPromiseBuffer,
-  PromiseBuffer,
-  TransportItem,
+  type PromiseBuffer,
+  type TransportItem,
 } from '@grafana/faro-core'
 
-import { QrynPayload, QrynTransportPayload } from './payload'
-import { QrynLokiTransportOptions } from './types'
+import { QrynPayload, type QrynTransportPayload } from './payload'
+import type { QrynLokiTransportOptions } from './types'
 
 const DEFAULT_BUFFER_SIZE = 30
 const DEFAULT_CONCURRENCY = 5 // chrome supports 10 total, firefox 17
 const DEFAULT_RATE_LIMIT_BACKOFF_MS = 5000
 const LOKI_LOGS_ENDPOINT = '/loki/api/v1/push'
 const OTLP_TRACES_ENDPOINT = '/v1/traces'
+
 export class QrynTransport extends BaseTransport {
   readonly name = '@gigapipe/faro-transport-qryn'
 
