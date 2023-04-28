@@ -1,9 +1,9 @@
 import { BaseTransport, TransportItem } from '@grafana/faro-core';
 
-interface QrynLokiTransportRequestOptions extends Omit<RequestInit, 'body' | 'headers'> {
+type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
     headers?: Record<string, string>;
-}
-interface QrynLokiTransportOptions {
+};
+type QrynLokiTransportOptions = {
     /**
      * The qryn Cloud host URL
      */
@@ -42,7 +42,7 @@ interface QrynLokiTransportOptions {
      * Get current date for mocking purposes in tests
      */
     getNow?: ClockFn;
-}
+};
 type ClockFn = () => number;
 
 declare class QrynTransport extends BaseTransport {

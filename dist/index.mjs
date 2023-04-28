@@ -97,10 +97,10 @@ function getLogTransforms(internalLogger) {
 
 // src/payload/QrynPayload.ts
 var QrynPayload = class {
-  //   private getTraceTransforms: TraceTransform
+  // TODO: implement handling for TransportItemType.TRACE
+  // private getTraceTransforms: TraceTransform
   constructor(internalLogger, transportItem) {
     this.internalLogger = internalLogger;
-    internalLogger.debug(`Initializing QrynPayload`);
     this.internalLogger = internalLogger;
     this.getLogTransforms = getLogTransforms(this.internalLogger);
     if (transportItem) {
@@ -108,16 +108,15 @@ var QrynPayload = class {
     }
   }
   resourceLogs = { streams: [] };
+  // TODO: implement handling for TransportItemType.TRACE
   // private resourceSpans = [] as QrynTransportPayload['resourceSpans']
   getLogTransforms;
   getPayload() {
     return {
       resourceLogs: this.resourceLogs
-      // resourceSpans: this.resourceSpans,
     };
   }
   addResourceItem(transportItem) {
-    this.internalLogger.debug(`Adding resource item: ${JSON.stringify(transportItem)}`);
     const { type } = transportItem;
     try {
       switch (type) {
@@ -125,7 +124,6 @@ var QrynPayload = class {
         case TransportItemType2.EXCEPTION:
         case TransportItemType2.EVENT:
         case TransportItemType2.MEASUREMENT: {
-          this.internalLogger.debug("Item is a log or an exception or an event or a measurement");
           const { toLogValue, toLogLabels } = this.getLogTransforms;
           const currentLogStream = toLogLabels(transportItem);
           const existingResourceLogs = this.resourceLogs.streams.find(
@@ -144,6 +142,7 @@ var QrynPayload = class {
           break;
         }
         case TransportItemType2.TRACE: {
+          this.internalLogger.error("Trace is not supported");
           break;
         }
         default:
@@ -154,8 +153,8 @@ var QrynPayload = class {
       this.internalLogger?.error(error);
     }
   }
-  static hasPayload(payload) {
-    if (payload && payload.streams.length > 0) {
+  static hasPayload(value) {
+    if (value && value.streams && value.streams.length > 0) {
       return true;
     }
     return false;
@@ -199,11 +198,12 @@ var QrynTransport = class extends BaseTransport {
     this.sendPayload(qrynPayload.getPayload());
   }
   sendPayload(payload) {
-    this.logDebug(`Sending payload: ${JSON.stringify(payload)}`);
     try {
       for (const [key, value] of Object.entries(payload)) {
-        if (!QrynPayload.hasPayload(value))
+        if (!QrynPayload.hasPayload(value)) {
+          this.logWarn(`Dropping transport item due to missing payload: ${JSON.stringify(value)}`);
           continue;
+        }
         let disabledUntil;
         let updateDisabledUntil = (_) => {
         };
