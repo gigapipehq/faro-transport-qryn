@@ -13,7 +13,22 @@ import {
   LogLevel,
   TransportItemType
 } from "@grafana/faro-core";
-function getLogTransforms(internalLogger) {
+
+// src/payload/config/config.ts
+function defaultLabels(meta) {
+  return {
+    ...meta.app && {
+      app: meta.app.name,
+      environment: meta.app.environment,
+      release: meta.app.release
+    },
+    ...meta.browser && { browser_name: meta.browser.name },
+    ...meta.user && { user_id: meta.user.id }
+  };
+}
+
+// src/payload/transform/transform.ts
+function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   function toLogLogValue(payload) {
     const { timestamp, trace, level, ...log } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
@@ -56,22 +71,22 @@ function getLogTransforms(internalLogger) {
       case TransportItemType.LOG:
         return {
           level: payload.level,
-          ...getBaseLabels(meta)
+          ...getLabelsFromMeta(meta)
         };
       case TransportItemType.EXCEPTION:
         return {
           level: LogLevel.ERROR,
-          ...getBaseLabels(meta)
+          ...getLabelsFromMeta(meta)
         };
       case TransportItemType.EVENT:
         return {
           level: LogLevel.INFO,
-          ...getBaseLabels(meta)
+          ...getLabelsFromMeta(meta)
         };
       case TransportItemType.MEASUREMENT:
         return {
           level: LogLevel.INFO,
-          ...getBaseLabels(meta)
+          ...getLabelsFromMeta(meta)
         };
       default:
         internalLogger?.error(`Unknown TransportItemType: ${type}`);
@@ -81,17 +96,6 @@ function getLogTransforms(internalLogger) {
   function toTimeUnixNano(timestamp) {
     return Date.parse(timestamp) * 1e6;
   }
-  function getBaseLabels(meta) {
-    return {
-      ...meta.app && {
-        app: meta.app.name,
-        environment: meta.app.environment,
-        release: meta.app.release
-      },
-      ...meta.browser && { browser_name: meta.browser.name },
-      ...meta.user && { user_id: meta.user.id }
-    };
-  }
   return { toLogValue, toLogLabels };
 }
 
@@ -99,10 +103,10 @@ function getLogTransforms(internalLogger) {
 var QrynPayload = class {
   // TODO: implement handling for TransportItemType.TRACE
   // private getTraceTransforms: TraceTransform
-  constructor(internalLogger, transportItem) {
+  constructor(internalLogger, getLabelsFromMeta, transportItem) {
     this.internalLogger = internalLogger;
     this.internalLogger = internalLogger;
-    this.getLogTransforms = getLogTransforms(this.internalLogger);
+    this.getLogTransforms = getLogTransforms(this.internalLogger, getLabelsFromMeta);
     if (transportItem) {
       this.addResourceItem(transportItem);
     }
@@ -175,6 +179,7 @@ var QrynTransport = class extends BaseTransport {
     this.getNow = options.getNow ?? (() => Date.now());
     this.logsURL = `${options.host}${LOKI_LOGS_ENDPOINT}`;
     this.tracesURL = `${options.host}${OTLP_TRACES_ENDPOINT}`;
+    this.getLabelsFromMeta = options.getLabelsFromMeta;
     this.promiseBuffer = createPromiseBuffer({
       size: options.bufferSize ?? DEFAULT_BUFFER_SIZE,
       concurrency: options.concurrency ?? DEFAULT_CONCURRENCY
@@ -189,9 +194,10 @@ var QrynTransport = class extends BaseTransport {
   sendingLogsDisabledUntil = /* @__PURE__ */ new Date();
   logsURL;
   tracesURL;
+  getLabelsFromMeta;
   send(item) {
     this.logDebug(`Sending item: ${JSON.stringify(item)}`);
-    const qrynPayload = new QrynPayload(this.internalLogger);
+    const qrynPayload = new QrynPayload(this.internalLogger, this.getLabelsFromMeta);
     const items = Array.isArray(item) ? item : [item];
     items.forEach((i) => qrynPayload.addResourceItem(i));
     this.logDebug("Current QrynPayload:", qrynPayload);

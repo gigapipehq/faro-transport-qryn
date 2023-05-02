@@ -1,4 +1,7 @@
-import { BaseTransport, TransportItem } from '@grafana/faro-core';
+import { Meta, BaseTransport, TransportItem } from '@grafana/faro-core';
+
+type LogLabels = Record<string, string>;
+type GetLabelsFromMeta = (meta: Meta) => LogLabels;
 
 type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
     headers?: Record<string, string>;
@@ -42,6 +45,18 @@ type QrynLokiTransportOptions = {
      * Get current date for mocking purposes in tests
      */
     getNow?: ClockFn;
+    /**
+     * Function used to create the labels from the meta data.
+     *
+     * @default (meta) => ({
+     *    app: meta.app.name,
+     *    environment: meta.app.environment,
+     *    release: meta.app.release,
+     *    browser_name: meta.browser.name
+     *    user_id: meta.user.id
+     * })
+     */
+    getLabelsFromMeta?: GetLabelsFromMeta;
 };
 type ClockFn = () => number;
 
@@ -56,6 +71,7 @@ declare class QrynTransport extends BaseTransport {
     private sendingLogsDisabledUntil;
     private logsURL;
     private tracesURL;
+    private getLabelsFromMeta?;
     constructor(options: QrynLokiTransportOptions);
     send(item: TransportItem | TransportItem[]): void;
     private sendPayload;
