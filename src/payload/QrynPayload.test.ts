@@ -27,6 +27,7 @@ describe('QrynPayload', () => {
     expect(payload).toEqual({
       resourceLogs: { streams: [] },
     })
+    expect(QrynPayload.hasPayload(payload.resourceLogs)).toBe(false)
   })
 
   it('should create an instance containing the correct resourceLogs for the given TransportItem', () => {
@@ -34,6 +35,7 @@ describe('QrynPayload', () => {
     const payload = qrynpayload.getPayload()
 
     expect(payload.resourceLogs.streams.length).toBe(1)
+    expect(QrynPayload.hasPayload(payload.resourceLogs)).toBe(true)
     expect(payload.resourceLogs.streams[0]).toEqual({
       stream: { level: 'info' },
       values: [
@@ -59,6 +61,7 @@ describe('QrynPayload', () => {
     const payload = qrynpayload.getPayload()
 
     expect(payload.resourceLogs.streams).toHaveLength(1)
+    expect(QrynPayload.hasPayload(payload.resourceLogs)).toBe(true)
     expect(payload.resourceLogs.streams[0].values).toHaveLength(2)
   })
 
@@ -77,6 +80,7 @@ describe('QrynPayload', () => {
     const payload = qrynpayload.getPayload()
 
     expect(payload.resourceLogs.streams).toHaveLength(2)
+    expect(QrynPayload.hasPayload(payload.resourceLogs)).toBe(true)
     expect(payload.resourceLogs.streams[0].stream).not.toEqual(
       payload.resourceLogs.streams[1].stream,
     )
