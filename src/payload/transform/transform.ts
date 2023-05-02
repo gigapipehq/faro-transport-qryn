@@ -10,11 +10,12 @@ import {
   TransportItemType,
 } from '@grafana/faro-core'
 
+import { defaultLabels } from '../config'
 import type { GetLabelsFromMeta, LogsTransform, LogTransportItem, LogValue } from './types'
 
 export function getLogTransforms(
   internalLogger: InternalLogger,
-  getLabelsFromMeta: GetLabelsFromMeta,
+  getLabelsFromMeta: GetLabelsFromMeta = defaultLabels,
 ): LogsTransform {
   function toLogLogValue(payload: TransportItem<LogEvent>['payload']): LogValue {
     // TODO: what to do with the trace?

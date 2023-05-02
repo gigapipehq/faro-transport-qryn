@@ -7,7 +7,6 @@ import {
 } from '@grafana/faro-core'
 
 import { QrynPayload, type QrynTransportPayload } from './payload'
-import { defaultLabels } from './payload/config'
 import { type GetLabelsFromMeta } from './payload/transform'
 import type { QrynLokiTransportOptions } from './types'
 
@@ -36,7 +35,7 @@ export class QrynTransport extends BaseTransport {
 
   private tracesURL: string
 
-  private getLabelsFromMeta: GetLabelsFromMeta
+  private getLabelsFromMeta?: GetLabelsFromMeta
 
   constructor(private options: QrynLokiTransportOptions) {
     super()
@@ -47,7 +46,7 @@ export class QrynTransport extends BaseTransport {
     this.logsURL = `${options.host}${LOKI_LOGS_ENDPOINT}`
     this.tracesURL = `${options.host}${OTLP_TRACES_ENDPOINT}`
 
-    this.getLabelsFromMeta = options.getLabelsFromMeta ?? defaultLabels
+    this.getLabelsFromMeta = options.getLabelsFromMeta
 
     this.promiseBuffer = createPromiseBuffer({
       size: options.bufferSize ?? DEFAULT_BUFFER_SIZE,
@@ -82,6 +81,7 @@ export class QrynTransport extends BaseTransport {
           case 'resourceSpans':
             url = this.tracesURL
             disabledUntil = this.sendingTracesDisabledUntil
+
             updateDisabledUntil = (retryAfterDate: Date) => {
               this.sendingTracesDisabledUntil = retryAfterDate
             }

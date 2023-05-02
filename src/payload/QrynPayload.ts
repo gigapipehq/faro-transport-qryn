@@ -21,7 +21,7 @@ export class QrynPayload {
 
   constructor(
     private internalLogger: InternalLogger,
-    getLabelsFromMeta: GetLabelsFromMeta,
+    getLabelsFromMeta?: GetLabelsFromMeta,
     transportItem?: TransportItem,
   ) {
     this.internalLogger = internalLogger
