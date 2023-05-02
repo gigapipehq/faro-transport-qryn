@@ -14,7 +14,9 @@ const logTransportItem: LogTransportItem = {
     timestamp: '2023-01-27T09:53:01.035Z',
   },
   meta: {
-    app: 'my-app',
+    app: {
+      name: 'my-app',
+    },
   },
 } as const
 
