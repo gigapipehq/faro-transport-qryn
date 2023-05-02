@@ -1,3 +1,5 @@
+import { type GetLabelsFromMeta } from './payload/transform'
+
 export type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
 }
@@ -41,6 +43,18 @@ export type QrynLokiTransportOptions = {
    * Get current date for mocking purposes in tests
    */
   getNow?: ClockFn
+  /**
+   * Function used to create the labels from the meta data.
+   *
+   * @default (meta) => ({
+   *    app: meta.app.name,
+   *    environment: meta.app.environment,
+   *    release: meta.app.release,
+   *    browser_name: meta.browser.name
+   *    user_id: meta.user.id
+   * })
+   */
+  getLabelsFromMeta?: GetLabelsFromMeta
 }
 
 export type ClockFn = () => number

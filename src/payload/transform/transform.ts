@@ -6,14 +6,16 @@ import {
   LogEvent,
   LogLevel,
   MeasurementEvent,
-  Meta,
   TransportItem,
   TransportItemType,
 } from '@grafana/faro-core'
 
-import type { LogsTransform, LogTransportItem, LogValue } from './types'
+import type { GetLabelsFromMeta, LogsTransform, LogTransportItem, LogValue } from './types'
 
-export function getLogTransforms(internalLogger: InternalLogger): LogsTransform {
+export function getLogTransforms(
+  internalLogger: InternalLogger,
+  getLabelsFromMeta: GetLabelsFromMeta,
+): LogsTransform {
   function toLogLogValue(payload: TransportItem<LogEvent>['payload']): LogValue {
     // TODO: what to do with the trace?
     const { timestamp, trace, level, ...log } = payload
@@ -69,22 +71,22 @@ export function getLogTransforms(internalLogger: InternalLogger): LogsTransform 
       case TransportItemType.LOG:
         return {
           level: payload.level,
-          ...getBaseLabels(meta),
+          ...getLabelsFromMeta(meta),
         }
       case TransportItemType.EXCEPTION:
         return {
           level: LogLevel.ERROR,
-          ...getBaseLabels(meta),
+          ...getLabelsFromMeta(meta),
         }
       case TransportItemType.EVENT:
         return {
           level: LogLevel.INFO,
-          ...getBaseLabels(meta),
+          ...getLabelsFromMeta(meta),
         }
       case TransportItemType.MEASUREMENT:
         return {
           level: LogLevel.INFO,
-          ...getBaseLabels(meta),
+          ...getLabelsFromMeta(meta),
         }
       default:
         internalLogger?.error(`Unknown TransportItemType: ${type}`)
@@ -94,20 +96,6 @@ export function getLogTransforms(internalLogger: InternalLogger): LogsTransform 
 
   function toTimeUnixNano(timestamp: string): number {
     return Date.parse(timestamp) * 1e6
-  }
-
-  function getBaseLabels(meta: Meta) {
-    // TODO: should we parse all meta object into labels by default?
-
-    return {
-      ...(meta.app && {
-        app: meta.app.name,
-        environment: meta.app.environment,
-        release: meta.app.release,
-      }),
-      ...(meta.browser && { browser_name: meta.browser.name }),
-      ...(meta.user && { user_id: meta.user.id }),
-    }
   }
 
   return { toLogValue, toLogLabels }

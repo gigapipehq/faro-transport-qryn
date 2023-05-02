@@ -1,0 +1,1 @@
+export { defaultLabels } from './config'

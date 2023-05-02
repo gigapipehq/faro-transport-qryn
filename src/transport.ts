@@ -7,6 +7,8 @@ import {
 } from '@grafana/faro-core'
 
 import { QrynPayload, type QrynTransportPayload } from './payload'
+import { defaultLabels } from './payload/config'
+import { type GetLabelsFromMeta } from './payload/transform'
 import type { QrynLokiTransportOptions } from './types'
 
 const DEFAULT_BUFFER_SIZE = 30
@@ -34,6 +36,8 @@ export class QrynTransport extends BaseTransport {
 
   private tracesURL: string
 
+  private getLabelsFromMeta: GetLabelsFromMeta
+
   constructor(private options: QrynLokiTransportOptions) {
     super()
     this.rateLimitBackoffMs = options.defaultRateLimitBackoffMs ?? DEFAULT_RATE_LIMIT_BACKOFF_MS
@@ -43,6 +47,8 @@ export class QrynTransport extends BaseTransport {
     this.logsURL = `${options.host}${LOKI_LOGS_ENDPOINT}`
     this.tracesURL = `${options.host}${OTLP_TRACES_ENDPOINT}`
 
+    this.getLabelsFromMeta = options.getLabelsFromMeta ?? defaultLabels
+
     this.promiseBuffer = createPromiseBuffer({
       size: options.bufferSize ?? DEFAULT_BUFFER_SIZE,
       concurrency: options.concurrency ?? DEFAULT_CONCURRENCY,
@@ -51,7 +57,7 @@ export class QrynTransport extends BaseTransport {
 
   send(item: TransportItem | TransportItem[]): void {
     this.logDebug(`Sending item: ${JSON.stringify(item)}`)
-    const qrynPayload = new QrynPayload(this.internalLogger)
+    const qrynPayload = new QrynPayload(this.internalLogger, this.getLabelsFromMeta)
     const items = Array.isArray(item) ? item : [item]
 
     items.forEach(i => qrynPayload.addResourceItem(i))

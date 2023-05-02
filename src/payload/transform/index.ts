@@ -1,2 +1,2 @@
 export { getLogTransforms } from './transform'
-export type { LogsTransform, LogTransportItem } from './types'
+export type { GetLabelsFromMeta, LogsTransform, LogTransportItem } from './types'

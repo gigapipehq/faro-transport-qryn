@@ -1,7 +1,12 @@
 import { type InternalLogger, type TransportItem, TransportItemType } from '@grafana/faro-core'
 import compare from 'just-compare'
 
-import { getLogTransforms, type LogsTransform, type LogTransportItem } from './transform'
+import {
+  type GetLabelsFromMeta,
+  getLogTransforms,
+  type LogsTransform,
+  type LogTransportItem,
+} from './transform'
 import type { QrynTransportPayload } from './types'
 
 export class QrynPayload {
@@ -14,10 +19,14 @@ export class QrynPayload {
   // TODO: implement handling for TransportItemType.TRACE
   // private getTraceTransforms: TraceTransform
 
-  constructor(private internalLogger: InternalLogger, transportItem?: TransportItem) {
+  constructor(
+    private internalLogger: InternalLogger,
+    getLabelsFromMeta: GetLabelsFromMeta,
+    transportItem?: TransportItem,
+  ) {
     this.internalLogger = internalLogger
 
-    this.getLogTransforms = getLogTransforms(this.internalLogger)
+    this.getLogTransforms = getLogTransforms(this.internalLogger, getLabelsFromMeta)
     // TODO: implement handling for TransportItemType.TRACE
     // this.getTraceTransforms = getTraceTransforms(this.internalLogger);
 
