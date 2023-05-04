@@ -1,3 +1,7 @@
+import type { ContextManager, TextMapPropagator } from '@opentelemetry/api'
+import type { InstrumentationOption } from '@opentelemetry/instrumentation'
+import type { ResourceAttributes } from '@opentelemetry/resources'
+
 import { type GetLabelsFromMeta } from './payload/transform'
 
 export type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
@@ -57,4 +61,47 @@ export type QrynLokiTransportOptions = {
   getLabelsFromMeta?: GetLabelsFromMeta
 }
 
+export type TracingInstrumentationOptions = {
+  /**
+   * The qryn Cloud host URL
+   */
+  host: string
+  /**
+   * The qryn Cloud token with write permissions.
+   *
+   * It will be added as `X-API-Token` header
+   */
+  apiToken: string
+  /**
+   * Resource attributes passed to the default Resource of `@opentelemetry/resources`
+   */
+  resourceAttributes?: ResourceAttributes
+  /**
+   * Propagator to use as the global propagator
+   *
+   * @default W3CTraceContextPropagator
+   */
+  propagator?: TextMapPropagator
+  /**
+   * Context manager to use as the global context manager
+   *
+   * @default ZoneContextManager
+   */
+  contextManager?: ContextManager
+  /**
+   * Customize the list of instrumentations
+   *
+   * @default
+   * [ DocumentLoadInstrumentation, FetchInstrumentation, XMLHttpRequestInstrumentation, UserInteractionInstrumentation]`
+   */
+  instrumentations?: InstrumentationOption[]
+  /**
+   * Options used to configure the default `FetchInstrumentation` and `XMLHttpRequestInstrumentation`
+   */
+  instrumentationOptions?: {
+    propagateTraceHeaderCorsUrls: MatchUrlDefinitions
+  }
+}
+
+export type MatchUrlDefinitions = Array<string | RegExp>
 export type ClockFn = () => number
