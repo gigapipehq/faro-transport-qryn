@@ -3,18 +3,18 @@ import {
   BaseTransport,
   createPromiseBuffer,
   type PromiseBuffer,
-  type TransportItem,
+  type TransportItem as FaroTransportItem,
 } from '@grafana/faro-core'
 
 import { QrynPayload, type QrynTransportPayload } from './payload'
-import { type GetLabelsFromMeta } from './payload/transform'
+import { type GetLabelsFromMeta, TransportItem } from './payload/transform'
 import type { QrynLokiTransportOptions } from './types'
 
 const DEFAULT_BUFFER_SIZE = 30
 const DEFAULT_CONCURRENCY = 5 // chrome supports 10 total, firefox 17
 const DEFAULT_RATE_LIMIT_BACKOFF_MS = 5000
 const LOKI_LOGS_ENDPOINT = '/loki/api/v1/push'
-const OTLP_TRACES_ENDPOINT = '/v1/traces'
+const TEMPO_TRACES_ENDPOINT = '/v1/traces'
 
 export class QrynTransport extends BaseTransport {
   readonly name = '@gigapipe/faro-transport-qryn'
@@ -44,7 +44,7 @@ export class QrynTransport extends BaseTransport {
 
     // TODO: make this configurable through an option that controls the prefered ingestion API for each signal
     this.logsURL = `${options.host}${LOKI_LOGS_ENDPOINT}`
-    this.tracesURL = `${options.host}${OTLP_TRACES_ENDPOINT}`
+    this.tracesURL = `${options.host}${TEMPO_TRACES_ENDPOINT}`
 
     this.getLabelsFromMeta = options.getLabelsFromMeta
 
@@ -54,12 +54,12 @@ export class QrynTransport extends BaseTransport {
     })
   }
 
-  send(item: TransportItem | TransportItem[]): void {
+  send(item: FaroTransportItem | FaroTransportItem[]): void {
     this.logDebug(`Sending item: ${JSON.stringify(item)}`)
     const qrynPayload = new QrynPayload(this.internalLogger, this.getLabelsFromMeta)
     const items = Array.isArray(item) ? item : [item]
 
-    items.forEach(i => qrynPayload.addResourceItem(i))
+    items.forEach(i => qrynPayload.addResourceItem(i as TransportItem))
     this.logDebug('Current QrynPayload:', qrynPayload)
     this.sendPayload(qrynPayload.getPayload())
   }

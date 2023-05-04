@@ -11,42 +11,75 @@ import {
 } from '@grafana/faro-core'
 
 import { defaultLabels } from '../config'
-import type { GetLabelsFromMeta, LogsTransform, LogTransportItem, LogValue } from './types'
+import type {
+  GetLabelsFromMeta,
+  LogsTransform,
+  LogTransportItem,
+  LogValue,
+  TraceTransportItem,
+} from './types'
+import { fmt } from './utils'
 
 export function getLogTransforms(
   internalLogger: InternalLogger,
   getLabelsFromMeta: GetLabelsFromMeta = defaultLabels,
 ): LogsTransform {
   function toLogLogValue(payload: TransportItem<LogEvent>['payload']): LogValue {
-    // TODO: what to do with the trace?
-    const { timestamp, trace, level, ...log } = payload
+    const { timestamp, trace, message, context } = payload
     const timeUnixNano = toTimeUnixNano(timestamp)
 
-    return [timeUnixNano.toString(), JSON.stringify(log)]
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        message,
+        context: JSON.stringify(context),
+        ...(trace && { traceId: trace.trace_id }),
+      }),
+    ]
   }
 
   function toErrorLogValue(payload: TransportItem<ExceptionEvent>['payload']): LogValue {
-    // TODO: what to do with the trace?
-    const { timestamp, trace, ...error } = payload
+    const { timestamp, trace, type, value, stacktrace } = payload
     const timeUnixNano = toTimeUnixNano(timestamp)
 
-    return [timeUnixNano.toString(), JSON.stringify(error)]
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        type,
+        value,
+        stacktrace: JSON.stringify(stacktrace),
+        ...(trace && { traceId: trace.trace_id }),
+      }),
+    ]
   }
 
   function toEventLogValue(payload: TransportItem<EventEvent>['payload']): LogValue {
-    // TODO: what to do with the trace?
-    const { timestamp, trace, ...event } = payload
+    const { timestamp, trace, name, attributes, domain } = payload
     const timeUnixNano = toTimeUnixNano(timestamp)
 
-    return [timeUnixNano.toString(), JSON.stringify(event)]
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        name,
+        attributes: JSON.stringify(attributes),
+        ...(domain && { domain }),
+        ...(trace && { traceId: trace.trace_id }),
+      }),
+    ]
   }
 
   function toMeasurementLogValue(payload: TransportItem<MeasurementEvent>['payload']): LogValue {
-    // TODO: what to do with the trace?
-    const { timestamp, trace, ...metric } = payload
-    const timeUnixNano = toTimeUnixNano(payload.timestamp)
+    const { timestamp, trace, type, values } = payload
+    const timeUnixNano = toTimeUnixNano(timestamp)
 
-    return [timeUnixNano.toString(), JSON.stringify(metric)]
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        type,
+        values: JSON.stringify(values),
+        ...(trace && { traceId: trace.trace_id }),
+      }),
+    ]
   }
 
   function toLogValue(transportItem: LogTransportItem) {
@@ -100,4 +133,19 @@ export function getLogTransforms(
   }
 
   return { toLogValue, toLogLabels }
+}
+
+export function getTraceTransforms(internalLogger: InternalLogger) {
+  function toSpanValue(transportItem: TraceTransportItem): undefined {
+    const { type } = transportItem
+    switch (type) {
+      case TransportItemType.TRACE:
+        return undefined
+
+      default:
+        internalLogger?.error(`Unknown TransportItemType: ${type}`)
+        return undefined
+    }
+  }
+  return { toSpanValue }
 }
