@@ -1,4 +1,7 @@
-import { Meta, BaseTransport, TransportItem } from '@grafana/faro-core';
+import { Meta, BaseInstrumentation, BaseTransport, TransportItem } from '@grafana/faro-core';
+import { TextMapPropagator, ContextManager } from '@opentelemetry/api';
+import { InstrumentationOption } from '@opentelemetry/instrumentation';
+import { ResourceAttributes } from '@opentelemetry/resources';
 
 type LogLabels = Record<string, string>;
 type GetLabelsFromMeta = (meta: Meta) => LogLabels;
@@ -58,7 +61,60 @@ type QrynLokiTransportOptions = {
      */
     getLabelsFromMeta?: GetLabelsFromMeta;
 };
+type TracingInstrumentationOptions = {
+    /**
+     * The qryn Cloud host URL
+     */
+    host: string;
+    /**
+     * The qryn Cloud token with write permissions.
+     *
+     * It will be added as `X-API-Token` header
+     */
+    apiToken: string;
+    /**
+     * Resource attributes passed to the default Resource of `@opentelemetry/resources`
+     */
+    resourceAttributes?: ResourceAttributes;
+    /**
+     * Propagator to use as the global propagator
+     *
+     * @default W3CTraceContextPropagator
+     */
+    propagator?: TextMapPropagator;
+    /**
+     * Context manager to use as the global context manager
+     *
+     * @default ZoneContextManager
+     */
+    contextManager?: ContextManager;
+    /**
+     * Customize the list of instrumentations
+     *
+     * @default
+     * [ DocumentLoadInstrumentation, FetchInstrumentation, XMLHttpRequestInstrumentation, UserInteractionInstrumentation]`
+     */
+    instrumentations?: InstrumentationOption[];
+    /**
+     * Options used to configure the default `FetchInstrumentation` and `XMLHttpRequestInstrumentation`
+     */
+    instrumentationOptions?: {
+        propagateTraceHeaderCorsUrls: MatchUrlDefinitions;
+    };
+};
+type MatchUrlDefinitions = Array<string | RegExp>;
 type ClockFn = () => number;
+
+declare class TracingInstrumentation extends BaseInstrumentation {
+    private options;
+    name: string;
+    version: string;
+    static SCHEDULED_BATCH_DELAY_MS: number;
+    static MAX_EXPORT_BATCH_SIZE: number;
+    constructor(options: TracingInstrumentationOptions);
+    initialize(): void;
+    private getIgnoreUrls;
+}
 
 declare class QrynTransport extends BaseTransport {
     private options;
@@ -79,4 +135,4 @@ declare class QrynTransport extends BaseTransport {
     private getRetryAfterDate;
 }
 
-export { QrynLokiTransportOptions, QrynLokiTransportRequestOptions, QrynTransport };
+export { QrynLokiTransportOptions, QrynLokiTransportRequestOptions, QrynTransport, TracingInstrumentation };

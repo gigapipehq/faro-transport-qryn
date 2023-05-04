@@ -1,3 +1,84 @@
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => {
+  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+  return value;
+};
+
+// src/instrumentation.ts
+import { BaseInstrumentation } from "@grafana/faro-core";
+import { context, trace } from "@opentelemetry/api";
+import { ZoneContextManager } from "@opentelemetry/context-zone";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import { ZipkinExporter } from "@opentelemetry/exporter-zipkin";
+import { registerInstrumentations } from "@opentelemetry/instrumentation";
+import { DocumentLoadInstrumentation } from "@opentelemetry/instrumentation-document-load";
+import { FetchInstrumentation } from "@opentelemetry/instrumentation-fetch";
+import { UserInteractionInstrumentation } from "@opentelemetry/instrumentation-user-interaction";
+import { XMLHttpRequestInstrumentation } from "@opentelemetry/instrumentation-xml-http-request";
+import { Resource } from "@opentelemetry/resources";
+import { BatchSpanProcessor, WebTracerProvider } from "@opentelemetry/sdk-trace-web";
+import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
+var _TracingInstrumentation = class extends BaseInstrumentation {
+  constructor(options) {
+    super();
+    this.options = options;
+  }
+  name = "@gigapipe/faro-web-tracing-zipkin";
+  version = "1.0.0";
+  initialize() {
+    const { options } = this;
+    const attributes = {};
+    if (this.config.app.name) {
+      attributes[SemanticResourceAttributes.SERVICE_NAME] = this.config.app.name;
+    }
+    if (this.config.app.version) {
+      attributes[SemanticResourceAttributes.SERVICE_VERSION] = this.config.app.version;
+    }
+    Object.assign(attributes, options.resourceAttributes);
+    const resource = Resource.default().merge(new Resource(attributes));
+    const provider = new WebTracerProvider({ resource });
+    provider.addSpanProcessor(
+      new BatchSpanProcessor(
+        new ZipkinExporter({
+          headers: { "x-api-token": this.options.apiToken },
+          url: `${this.options.host}/tempo/spans`,
+          serviceName: this.config.app.name
+        }),
+        {
+          scheduledDelayMillis: _TracingInstrumentation.SCHEDULED_BATCH_DELAY_MS,
+          maxExportBatchSize: _TracingInstrumentation.MAX_EXPORT_BATCH_SIZE
+        }
+      )
+    );
+    provider.register({
+      propagator: options.propagator ?? new W3CTraceContextPropagator(),
+      contextManager: options.contextManager ?? new ZoneContextManager()
+    });
+    registerInstrumentations({
+      instrumentations: options.instrumentations ?? [
+        new DocumentLoadInstrumentation(),
+        new FetchInstrumentation({
+          ignoreUrls: this.getIgnoreUrls(),
+          propagateTraceHeaderCorsUrls: this.options.instrumentationOptions?.propagateTraceHeaderCorsUrls
+        }),
+        new XMLHttpRequestInstrumentation({
+          ignoreUrls: this.getIgnoreUrls(),
+          propagateTraceHeaderCorsUrls: this.options.instrumentationOptions?.propagateTraceHeaderCorsUrls
+        }),
+        new UserInteractionInstrumentation()
+      ]
+    });
+    this.api.initOTEL(trace, context);
+  }
+  getIgnoreUrls() {
+    return this.transports.transports.flatMap((transport) => transport.getIgnoreUrls());
+  }
+};
+var TracingInstrumentation = _TracingInstrumentation;
+__publicField(TracingInstrumentation, "SCHEDULED_BATCH_DELAY_MS", 1e3);
+__publicField(TracingInstrumentation, "MAX_EXPORT_BATCH_SIZE", 30);
+
 // src/transport.ts
 import {
   BaseTransport,
@@ -27,27 +108,85 @@ function defaultLabels(meta) {
   };
 }
 
+// src/payload/transform/utils.ts
+function stringify(data) {
+  let line = "";
+  Object.keys(data).forEach((key) => {
+    let value = "";
+    let isNull = false;
+    if (data[key] == null) {
+      isNull = true;
+      value = "";
+    } else {
+      value = data[key].toString();
+    }
+    const needsQuoting = value.indexOf(" ") > -1 || value.indexOf("=") > -1;
+    const needsEscaping = value.indexOf('"') > -1 || value.indexOf("\\") > -1;
+    if (needsEscaping)
+      value = value.replace(/["\\]/g, "\\$&");
+    if (needsQuoting)
+      value = `"${value}"`;
+    if (value === "" && !isNull)
+      value = '""';
+    line += `${key}=${value} `;
+  });
+  return line.substring(0, line.length - 1);
+}
+var fmt = {
+  stringify
+};
+
 // src/payload/transform/transform.ts
 function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   function toLogLogValue(payload) {
-    const { timestamp, trace, level, ...log } = payload;
+    const { timestamp, trace: trace2, message, context: context2 } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
-    return [timeUnixNano.toString(), JSON.stringify(log)];
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        message,
+        context: JSON.stringify(context2),
+        ...trace2 && { traceId: trace2.trace_id }
+      })
+    ];
   }
   function toErrorLogValue(payload) {
-    const { timestamp, trace, ...error } = payload;
+    const { timestamp, trace: trace2, type, value, stacktrace } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
-    return [timeUnixNano.toString(), JSON.stringify(error)];
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        type,
+        value,
+        stacktrace: JSON.stringify(stacktrace),
+        ...trace2 && { traceId: trace2.trace_id }
+      })
+    ];
   }
   function toEventLogValue(payload) {
-    const { timestamp, trace, ...event } = payload;
+    const { timestamp, trace: trace2, name, attributes, domain } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
-    return [timeUnixNano.toString(), JSON.stringify(event)];
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        name,
+        attributes: JSON.stringify(attributes),
+        ...domain && { domain },
+        ...trace2 && { traceId: trace2.trace_id }
+      })
+    ];
   }
   function toMeasurementLogValue(payload) {
-    const { timestamp, trace, ...metric } = payload;
-    const timeUnixNano = toTimeUnixNano(payload.timestamp);
-    return [timeUnixNano.toString(), JSON.stringify(metric)];
+    const { timestamp, trace: trace2, type, values } = payload;
+    const timeUnixNano = toTimeUnixNano(timestamp);
+    return [
+      timeUnixNano.toString(),
+      fmt.stringify({
+        type,
+        values: JSON.stringify(values),
+        ...trace2 && { traceId: trace2.trace_id }
+      })
+    ];
   }
   function toLogValue(transportItem) {
     const { type, payload } = transportItem;
@@ -98,26 +237,39 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   }
   return { toLogValue, toLogLabels };
 }
+function getTraceTransforms(internalLogger) {
+  function toSpanValue(transportItem) {
+    const { type } = transportItem;
+    switch (type) {
+      case TransportItemType.TRACE:
+        return void 0;
+      default:
+        internalLogger?.error(`Unknown TransportItemType: ${type}`);
+        return void 0;
+    }
+  }
+  return { toSpanValue };
+}
 
 // src/payload/QrynPayload.ts
 var QrynPayload = class {
-  // TODO: implement handling for TransportItemType.TRACE
-  // private getTraceTransforms: TraceTransform
   constructor(internalLogger, getLabelsFromMeta, transportItem) {
     this.internalLogger = internalLogger;
     this.internalLogger = internalLogger;
     this.getLogTransforms = getLogTransforms(this.internalLogger, getLabelsFromMeta);
+    this.getTraceTransforms = getTraceTransforms(this.internalLogger);
     if (transportItem) {
       this.addResourceItem(transportItem);
     }
   }
   resourceLogs = { streams: [] };
-  // TODO: implement handling for TransportItemType.TRACE
-  // private resourceSpans = [] as QrynTransportPayload['resourceSpans']
+  resourceSpans = [];
   getLogTransforms;
+  getTraceTransforms;
   getPayload() {
     return {
-      resourceLogs: this.resourceLogs
+      resourceLogs: this.resourceLogs,
+      resourceSpans: this.resourceSpans
     };
   }
   addResourceItem(transportItem) {
@@ -146,7 +298,6 @@ var QrynPayload = class {
           break;
         }
         case TransportItemType2.TRACE: {
-          this.internalLogger.error("Trace is not supported");
           break;
         }
         default:
@@ -161,6 +312,9 @@ var QrynPayload = class {
     if (value && value.streams && value.streams.length > 0) {
       return true;
     }
+    if (Array.isArray(value) && value.length > 0) {
+      return true;
+    }
     return false;
   }
 };
@@ -170,7 +324,7 @@ var DEFAULT_BUFFER_SIZE = 30;
 var DEFAULT_CONCURRENCY = 5;
 var DEFAULT_RATE_LIMIT_BACKOFF_MS = 5e3;
 var LOKI_LOGS_ENDPOINT = "/loki/api/v1/push";
-var OTLP_TRACES_ENDPOINT = "/v1/traces";
+var TEMPO_TRACES_ENDPOINT = "/v1/traces";
 var QrynTransport = class extends BaseTransport {
   constructor(options) {
     super();
@@ -178,7 +332,7 @@ var QrynTransport = class extends BaseTransport {
     this.rateLimitBackoffMs = options.defaultRateLimitBackoffMs ?? DEFAULT_RATE_LIMIT_BACKOFF_MS;
     this.getNow = options.getNow ?? (() => Date.now());
     this.logsURL = `${options.host}${LOKI_LOGS_ENDPOINT}`;
-    this.tracesURL = `${options.host}${OTLP_TRACES_ENDPOINT}`;
+    this.tracesURL = `${options.host}${TEMPO_TRACES_ENDPOINT}`;
     this.getLabelsFromMeta = options.getLabelsFromMeta;
     this.promiseBuffer = createPromiseBuffer({
       size: options.bufferSize ?? DEFAULT_BUFFER_SIZE,
@@ -289,6 +443,7 @@ var QrynTransport = class extends BaseTransport {
   }
 };
 export {
-  QrynTransport
+  QrynTransport,
+  TracingInstrumentation
 };
 //# sourceMappingURL=index.mjs.map
