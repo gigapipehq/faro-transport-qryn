@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@gigapipe/faro-transport-qryn": "file:../",
+    "@grafana/faro-transport-batch": "^1.0.5",
     "@grafana/faro-web-sdk": "^1.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

@@ -4,11 +4,10 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import { faro } from '@grafana/faro-web-sdk'
 import { ThrowError } from './ThrowError'
+import { TracingInstrumentation } from './TracingInstrumentation'
 
 function App() {
   const [count, setCount] = useState(0)
-  // Example of using the faro-web-sdk to send a manual log message
-  faro.api.pushLog(['App rendered'])
 
   return (
     <>
@@ -24,8 +23,8 @@ function App() {
       <div className="card">
         <button
           onClick={() => {
-            // Example of sending custom events
             faro.api.pushEvent('Count pressed', { count: count.toString() }, 'example')
+
             setCount(count => count + 1)
           }}
         >
@@ -38,6 +37,7 @@ function App() {
         </p>
       </div>
       <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
+      <TracingInstrumentation />
     </>
   )
 }
