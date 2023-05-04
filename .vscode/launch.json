@@ -9,12 +9,8 @@
       "request": "launch",
       "name": "Launch Chrome against localhost",
       "url": "https://localhost:5173",
-      "webRoot": "${workspaceFolder}",
-      "sourceMapPathOverrides": {
-        "meteor://💻app/*": "${workspaceFolder}/*",
-        "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
-        "webpack://?:*/*": "${workspaceFolder}/*"
-      }
+      "webRoot": "${workspaceFolder}/example",
+      "outFiles": ["${workspaceFolder}/example/node_modules/.vite/deps/**/*.js"]
     }
   ]
 }
