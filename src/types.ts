@@ -89,7 +89,7 @@ export type TracingInstrumentationOptions = {
    */
   contextManager?: ContextManager
   /**
-   * Customize the list of instrumentations
+   * Customize the list of tracing instrumentations
    *
    * @default
    * [ DocumentLoadInstrumentation, FetchInstrumentation, XMLHttpRequestInstrumentation, UserInteractionInstrumentation]`

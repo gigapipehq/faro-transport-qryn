@@ -24,23 +24,16 @@ pnpm add @grafana/faro-web-sdk
 
 ### Usage
 
-In your application main entrypoint initialize the sdk with our custom transport.
+In your application main entrypoint create an instance of our custom transport.
 
 ```typescript
-initializeFaro({
-  app: {
-    name: 'frontend',
-  },
-  transports: [
-    new QrynTransport({
-      host: import.meta.env.VITE_QRYN_HOST,
-      apiToken: import.meta.env.VITE_QRYN_API_TOKEN,
-    }),
-  ],
+const qrynTransport = new QrynTransport({
+  host: import.meta.env.VITE_QRYN_HOST,
+  apiToken: import.meta.env.VITE_QRYN_API_TOKEN,
 })
 ```
 
-### Configuration
+**Configuration**
 
 | Option                    | Description                                                                                                                      | Required | Default             |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------- |
@@ -51,3 +44,48 @@ initializeFaro({
 | bufferSize                | Number of requests to buffer in total                                                                                            |          | 30                  |
 | concurrency               | Number of requests to execute concurrently                                                                                       |          | 5                   |
 | defaultRateLimitBackoffMs | If a rate limit response does not include a `Retry-After` header. How many milliseconds to back off before attempting a request. |          | 5000                |
+
+If you want to support _traces_ create an instance of our custom `TracingInstrumentation`.
+
+```typescript
+const tracingInstrumentation = new TracingInstrumentation({
+  host: import.meta.env.VITE_QRYN_HOST,
+  apiToken: import.meta.env.VITE_QRYN_API_TOKEN,
+})
+```
+
+**Configuration**
+
+| Option                 | Description                                                                                                   | Required | Default                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| host                   | The qryn Cloud host URL                                                                                       | \*       |                                                                                                                       |
+| apiToken               | The qryn Cloud token with write permissions.                                                                  | \*       |                                                                                                                       |
+| resourceAttributes     | Resource attributes passed to the default Resource of `@opentelemetry/resources`                              |          |                                                                                                                       |
+| propagator             | Propagator to use as the global propagator                                                                    |          | `W3CTraceContextPropagator`                                                                                           |
+| contextManager         | Context manager to use as the global context manager                                                          |          | `ZoneContextManager`                                                                                                  |
+| instrumentations       | Customize the list tracing of instrumentations                                                                |          | `[ DocumentLoadInstrumentation, FetchInstrumentation, XMLHttpRequestInstrumentation, UserInteractionInstrumentation]` |
+| instrumentationOptions | Options used to configure the default `FetchInstrumentation` and `XMLHttpRequestInstrumentation` permissions. |          |                                                                                                                       |
+
+Finally initialize Faro with your configuration.
+
+> **Note:**
+> qryn Cloud supports batch ingestion by default, but if you want also to minimize the number of requests done from your client you can use the `@grafana/faro-transport-batch`.
+
+```typescript
+initializeFaro({
+  app: {
+    name: 'frontend',
+  },
+  transports: [
+    new BatchTransport(qrynTransport, {
+      batchSendCount: 10, // default is 50 signals.
+      batchSendTimeout: 1000, // default is 250ms
+    }),
+  ],
+  instrumentations: [
+    // Default instrumentations from @grafana/faro-web-sdk
+    ...getWebInstrumentations(),
+    tracingInstrumentation,
+  ],
+})
+```
