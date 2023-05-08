@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { mockInternalLogger } from './test-utils'
 import { QrynTransport } from './transport'
-import type { LogTransportItem } from './types'
+import type { LogTransportItem, TraceTransportItem } from './types'
 
 const logTransportItem: LogTransportItem = {
   type: TransportItemType.LOG,
@@ -18,6 +18,12 @@ const logTransportItem: LogTransportItem = {
       name: 'my-app',
     },
   },
+} as const
+
+const traceTransportItem: TraceTransportItem = {
+  type: TransportItemType.TRACE,
+  payload: {},
+  meta: {},
 } as const
 
 const fetch = vi.fn(() => Promise.resolve({ status: 200 }))
@@ -38,11 +44,17 @@ describe('QrynTransport', () => {
       payload: {
         streams: [
           {
-            stream: { level: 'info' },
-            values: [['1674813181035000000', '{"context":{},"message":"hi"}']],
+            stream: { level: 'info', app: 'my-app' },
+            values: [['1674813181035000000', 'message=hi context={}']],
           },
         ],
       },
+    },
+    {
+      v: traceTransportItem,
+      type: 'resourceSpans',
+      url: 'https://example.com/v1/traces',
+      payload: [{ resource: { attributes: [] }, scopeSpans: [] }],
     },
   ])('Sends $type over fetch to the default endpoint', ({ v, url, payload }) => {
     const transport = new QrynTransport({
@@ -79,7 +91,10 @@ describe('QrynTransport', () => {
     expect(fetch).toHaveBeenCalledTimes(3)
   })
 
-  it.skip.each([{ v: logTransportItem, type: 'resourceLogs' }])(
+  it.skip.each([
+    { v: logTransportItem, type: 'resourceLogs' },
+    { v: traceTransportItem, type: 'resourceSpans' },
+  ])(
     'will back off on 429 for default interval if no retry-after header is present while sending $type',
     async ({ v, type }) => {
       vi.useFakeTimers()

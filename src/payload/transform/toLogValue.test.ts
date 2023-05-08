@@ -47,7 +47,10 @@ const logItem: LogTransportItem = {
     },
   },
 } as const
-const matchLogValue = ['1674813181035000000', '{"context":{},"message":"Faro was initialized"}']
+const matchLogValue = [
+  '1674813181035000000',
+  'message="Faro was initialized" context={} traceId=trace-id',
+]
 
 const errorItem: LogTransportItem = {
   type: TransportItemType.EXCEPTION,
@@ -108,7 +111,7 @@ const errorItem: LogTransportItem = {
 }
 const matchErrorLog = [
   '1674813181035000000',
-  '{"type":"Error","value":"Error message","stacktrace":{"frames":[{"filename":"filename-one","function":"throwError","colno":21,"lineno":11},{"filename":"filename-two","function":"HTMLUnknownElement.callCallback2","colno":2345,"lineno":42}]}}',
+  'type=Error value="Error message" stacktrace={\\"frames\\":[{\\"filename\\":\\"filename-one\\",\\"function\\":\\"throwError\\",\\"colno\\":21,\\"lineno\\":11},{\\"filename\\":\\"filename-two\\",\\"function\\":\\"HTMLUnknownElement.callCallback2\\",\\"colno\\":2345,\\"lineno\\":42}]} traceId=trace-id',
 ]
 
 const eventItem: LogTransportItem = {
@@ -158,7 +161,7 @@ const eventItem: LogTransportItem = {
 }
 const matchEventLog = [
   '1674813181035000000',
-  '{"name":"event-name","domain":"event-domain","attributes":{"eventAttribute1":"one","eventAttribute2":"two"}}',
+  'name=event-name attributes={\\"eventAttribute1\\":\\"one\\",\\"eventAttribute2\\":\\"two\\"} domain=event-domain traceId=trace-id',
 ]
 
 const measurementLog: LogTransportItem = {
@@ -204,7 +207,7 @@ const measurementLog: LogTransportItem = {
 }
 const matchMeasurementLog = [
   '1674813181035000000',
-  '{"type":"web-vitals","values":{"fcp":213.7000000011176}}',
+  'type=web-vitals values={\\"fcp\\":213.7000000011176} traceId=trace-id',
 ]
 
 describe('toLogLogValue', () => {
