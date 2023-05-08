@@ -1,84 +1,3 @@
-var __defProp = Object.defineProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
-};
-
-// src/instrumentation.ts
-import { BaseInstrumentation } from "@grafana/faro-core";
-import { context, trace } from "@opentelemetry/api";
-import { ZoneContextManager } from "@opentelemetry/context-zone";
-import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { ZipkinExporter } from "@opentelemetry/exporter-zipkin";
-import { registerInstrumentations } from "@opentelemetry/instrumentation";
-import { DocumentLoadInstrumentation } from "@opentelemetry/instrumentation-document-load";
-import { FetchInstrumentation } from "@opentelemetry/instrumentation-fetch";
-import { UserInteractionInstrumentation } from "@opentelemetry/instrumentation-user-interaction";
-import { XMLHttpRequestInstrumentation } from "@opentelemetry/instrumentation-xml-http-request";
-import { Resource } from "@opentelemetry/resources";
-import { BatchSpanProcessor, WebTracerProvider } from "@opentelemetry/sdk-trace-web";
-import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
-var _TracingInstrumentation = class extends BaseInstrumentation {
-  constructor(options) {
-    super();
-    this.options = options;
-  }
-  name = "@gigapipe/faro-web-tracing-zipkin";
-  version = "1.0.0";
-  initialize() {
-    const { options } = this;
-    const attributes = {};
-    if (this.config.app.name) {
-      attributes[SemanticResourceAttributes.SERVICE_NAME] = this.config.app.name;
-    }
-    if (this.config.app.version) {
-      attributes[SemanticResourceAttributes.SERVICE_VERSION] = this.config.app.version;
-    }
-    Object.assign(attributes, options.resourceAttributes);
-    const resource = Resource.default().merge(new Resource(attributes));
-    const provider = new WebTracerProvider({ resource });
-    provider.addSpanProcessor(
-      new BatchSpanProcessor(
-        new ZipkinExporter({
-          headers: { "x-api-token": this.options.apiToken },
-          url: `${this.options.host}/tempo/spans`,
-          serviceName: this.config.app.name
-        }),
-        {
-          scheduledDelayMillis: _TracingInstrumentation.SCHEDULED_BATCH_DELAY_MS,
-          maxExportBatchSize: _TracingInstrumentation.MAX_EXPORT_BATCH_SIZE
-        }
-      )
-    );
-    provider.register({
-      propagator: options.propagator ?? new W3CTraceContextPropagator(),
-      contextManager: options.contextManager ?? new ZoneContextManager()
-    });
-    registerInstrumentations({
-      instrumentations: options.instrumentations ?? [
-        new DocumentLoadInstrumentation(),
-        new FetchInstrumentation({
-          ignoreUrls: this.getIgnoreUrls(),
-          propagateTraceHeaderCorsUrls: this.options.instrumentationOptions?.propagateTraceHeaderCorsUrls
-        }),
-        new XMLHttpRequestInstrumentation({
-          ignoreUrls: this.getIgnoreUrls(),
-          propagateTraceHeaderCorsUrls: this.options.instrumentationOptions?.propagateTraceHeaderCorsUrls
-        }),
-        new UserInteractionInstrumentation()
-      ]
-    });
-    this.api.initOTEL(trace, context);
-  }
-  getIgnoreUrls() {
-    return this.transports.transports.flatMap((transport) => transport.getIgnoreUrls());
-  }
-};
-var TracingInstrumentation = _TracingInstrumentation;
-__publicField(TracingInstrumentation, "SCHEDULED_BATCH_DELAY_MS", 1e3);
-__publicField(TracingInstrumentation, "MAX_EXPORT_BATCH_SIZE", 30);
-
 // src/transport.ts
 import {
   BaseTransport,
@@ -94,6 +13,53 @@ import {
   LogLevel,
   TransportItemType
 } from "@grafana/faro-core";
+import {
+  SemanticResourceAttributes,
+  TelemetrySdkLanguageValues
+} from "@opentelemetry/semantic-conventions";
+
+// src/payload/attribute/attributeUtils.ts
+import { isArray, isBoolean, isInt, isNumber, isObject, isString } from "@grafana/faro-core";
+function toAttributeValue(value) {
+  if (isString(value)) {
+    return { stringValue: value };
+  }
+  if (isInt(value)) {
+    return { intValue: value };
+  }
+  if (isNumber(value)) {
+    return { doubleValue: value };
+  }
+  if (isBoolean(value)) {
+    return { boolValue: value };
+  }
+  if (isArray(value)) {
+    return { arrayValue: { values: value.map(toAttributeValue) } };
+  }
+  if (value instanceof Uint8Array) {
+    return { bytesValue: value };
+  }
+  if (isObject(value)) {
+    return {
+      kvlistValue: {
+        values: Object.entries(value).map(([attributeName, attributeValue]) => toAttribute(attributeName, attributeValue)).filter(isAttribute)
+      }
+    };
+  }
+  return {};
+}
+function toAttribute(attributeName, attributeValue) {
+  if (attributeValue == null || attributeValue === "") {
+    return void 0;
+  }
+  return {
+    key: attributeName,
+    value: toAttributeValue(attributeValue)
+  };
+}
+function isAttribute(item) {
+  return Boolean(item) && typeof item?.key === "string" && typeof item?.value !== "undefined";
+}
 
 // src/payload/config/config.ts
 function defaultLabels(meta) {
@@ -139,19 +105,19 @@ var fmt = {
 // src/payload/transform/transform.ts
 function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   function toLogLogValue(payload) {
-    const { timestamp, trace: trace2, message, context: context2 } = payload;
+    const { timestamp, trace, message, context } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
       fmt.stringify({
         message,
-        context: JSON.stringify(context2),
-        ...trace2 && { traceId: trace2.trace_id }
+        context: JSON.stringify(context),
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
   function toErrorLogValue(payload) {
-    const { timestamp, trace: trace2, type, value, stacktrace } = payload;
+    const { timestamp, trace, type, value, stacktrace } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
@@ -159,12 +125,12 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
         type,
         value,
         stacktrace: JSON.stringify(stacktrace),
-        ...trace2 && { traceId: trace2.trace_id }
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
   function toEventLogValue(payload) {
-    const { timestamp, trace: trace2, name, attributes, domain } = payload;
+    const { timestamp, trace, name, attributes, domain } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
@@ -172,19 +138,19 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
         name,
         attributes: JSON.stringify(attributes),
         ...domain && { domain },
-        ...trace2 && { traceId: trace2.trace_id }
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
   function toMeasurementLogValue(payload) {
-    const { timestamp, trace: trace2, type, values } = payload;
+    const { timestamp, trace, type, values } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
       fmt.stringify({
         type,
         values: JSON.stringify(values),
-        ...trace2 && { traceId: trace2.trace_id }
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
@@ -237,18 +203,46 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   }
   return { toLogValue, toLogLabels };
 }
-function getTraceTransforms(internalLogger) {
-  function toSpanValue(transportItem) {
-    const { type } = transportItem;
-    switch (type) {
-      case TransportItemType.TRACE:
-        return void 0;
-      default:
-        internalLogger?.error(`Unknown TransportItemType: ${type}`);
-        return void 0;
-    }
+var SemanticBrowserAttributes = {
+  BROWSER_BRANDS: "browser.brands",
+  BROWSER_PLATFORM: "browser.platform",
+  BROWSER_MOBILE: "browser.mobile",
+  BROWSER_USER_AGENT: "browser.user_agent",
+  BROWSER_LANGUAGE: "browser.language"
+};
+function getTraceTransforms(_internalLogger) {
+  function toResourceSpan(transportItem) {
+    const resource = toResource(transportItem);
+    const scopeSpans = transportItem.payload.resourceSpans?.[0]?.scopeSpans;
+    return {
+      resource,
+      scopeSpans: scopeSpans ?? []
+    };
   }
-  return { toSpanValue };
+  return { toResourceSpan };
+}
+function toResource(transportItem) {
+  const { browser, sdk, app } = transportItem.meta;
+  return {
+    attributes: [
+      toAttribute(SemanticBrowserAttributes.BROWSER_MOBILE, browser?.mobile),
+      toAttribute(SemanticBrowserAttributes.BROWSER_USER_AGENT, browser?.userAgent),
+      toAttribute(SemanticBrowserAttributes.BROWSER_LANGUAGE, browser?.language),
+      toAttribute(SemanticBrowserAttributes.BROWSER_BRANDS, browser?.brands),
+      toAttribute("browser.os", browser?.os),
+      toAttribute("browser.name", browser?.name),
+      toAttribute("browser.version", browser?.version),
+      toAttribute(SemanticResourceAttributes.TELEMETRY_SDK_NAME, sdk?.name),
+      toAttribute(SemanticResourceAttributes.TELEMETRY_SDK_VERSION, sdk?.version),
+      sdk ? toAttribute(
+        SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE,
+        TelemetrySdkLanguageValues.WEBJS
+      ) : void 0,
+      toAttribute(SemanticResourceAttributes.SERVICE_NAME, app?.name),
+      toAttribute(SemanticResourceAttributes.SERVICE_VERSION, app?.version),
+      toAttribute(SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT, app?.environment)
+    ].filter(isAttribute)
+  };
 }
 
 // src/payload/QrynPayload.ts
@@ -298,6 +292,8 @@ var QrynPayload = class {
           break;
         }
         case TransportItemType2.TRACE: {
+          const { toResourceSpan } = this.getTraceTransforms;
+          this.resourceSpans.push(toResourceSpan(transportItem));
           break;
         }
         default:
@@ -443,7 +439,6 @@ var QrynTransport = class extends BaseTransport {
   }
 };
 export {
-  QrynTransport,
-  TracingInstrumentation
+  QrynTransport
 };
 //# sourceMappingURL=index.mjs.map

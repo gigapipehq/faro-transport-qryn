@@ -5,7 +5,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -27,92 +26,13 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
-};
 
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
-  QrynTransport: () => QrynTransport,
-  TracingInstrumentation: () => TracingInstrumentation
+  QrynTransport: () => QrynTransport
 });
 module.exports = __toCommonJS(src_exports);
-
-// src/instrumentation.ts
-var import_faro_core = require("@grafana/faro-core");
-var import_api = require("@opentelemetry/api");
-var import_context_zone = require("@opentelemetry/context-zone");
-var import_core = require("@opentelemetry/core");
-var import_exporter_zipkin = require("@opentelemetry/exporter-zipkin");
-var import_instrumentation = require("@opentelemetry/instrumentation");
-var import_instrumentation_document_load = require("@opentelemetry/instrumentation-document-load");
-var import_instrumentation_fetch = require("@opentelemetry/instrumentation-fetch");
-var import_instrumentation_user_interaction = require("@opentelemetry/instrumentation-user-interaction");
-var import_instrumentation_xml_http_request = require("@opentelemetry/instrumentation-xml-http-request");
-var import_resources = require("@opentelemetry/resources");
-var import_sdk_trace_web = require("@opentelemetry/sdk-trace-web");
-var import_semantic_conventions = require("@opentelemetry/semantic-conventions");
-var _TracingInstrumentation = class extends import_faro_core.BaseInstrumentation {
-  constructor(options) {
-    super();
-    this.options = options;
-  }
-  name = "@gigapipe/faro-web-tracing-zipkin";
-  version = "1.0.0";
-  initialize() {
-    const { options } = this;
-    const attributes = {};
-    if (this.config.app.name) {
-      attributes[import_semantic_conventions.SemanticResourceAttributes.SERVICE_NAME] = this.config.app.name;
-    }
-    if (this.config.app.version) {
-      attributes[import_semantic_conventions.SemanticResourceAttributes.SERVICE_VERSION] = this.config.app.version;
-    }
-    Object.assign(attributes, options.resourceAttributes);
-    const resource = import_resources.Resource.default().merge(new import_resources.Resource(attributes));
-    const provider = new import_sdk_trace_web.WebTracerProvider({ resource });
-    provider.addSpanProcessor(
-      new import_sdk_trace_web.BatchSpanProcessor(
-        new import_exporter_zipkin.ZipkinExporter({
-          headers: { "x-api-token": this.options.apiToken },
-          url: `${this.options.host}/tempo/spans`,
-          serviceName: this.config.app.name
-        }),
-        {
-          scheduledDelayMillis: _TracingInstrumentation.SCHEDULED_BATCH_DELAY_MS,
-          maxExportBatchSize: _TracingInstrumentation.MAX_EXPORT_BATCH_SIZE
-        }
-      )
-    );
-    provider.register({
-      propagator: options.propagator ?? new import_core.W3CTraceContextPropagator(),
-      contextManager: options.contextManager ?? new import_context_zone.ZoneContextManager()
-    });
-    (0, import_instrumentation.registerInstrumentations)({
-      instrumentations: options.instrumentations ?? [
-        new import_instrumentation_document_load.DocumentLoadInstrumentation(),
-        new import_instrumentation_fetch.FetchInstrumentation({
-          ignoreUrls: this.getIgnoreUrls(),
-          propagateTraceHeaderCorsUrls: this.options.instrumentationOptions?.propagateTraceHeaderCorsUrls
-        }),
-        new import_instrumentation_xml_http_request.XMLHttpRequestInstrumentation({
-          ignoreUrls: this.getIgnoreUrls(),
-          propagateTraceHeaderCorsUrls: this.options.instrumentationOptions?.propagateTraceHeaderCorsUrls
-        }),
-        new import_instrumentation_user_interaction.UserInteractionInstrumentation()
-      ]
-    });
-    this.api.initOTEL(import_api.trace, import_api.context);
-  }
-  getIgnoreUrls() {
-    return this.transports.transports.flatMap((transport) => transport.getIgnoreUrls());
-  }
-};
-var TracingInstrumentation = _TracingInstrumentation;
-__publicField(TracingInstrumentation, "SCHEDULED_BATCH_DELAY_MS", 1e3);
-__publicField(TracingInstrumentation, "MAX_EXPORT_BATCH_SIZE", 30);
 
 // src/transport.ts
 var import_faro_core4 = require("@grafana/faro-core");
@@ -123,6 +43,50 @@ var import_just_compare = __toESM(require("just-compare"));
 
 // src/payload/transform/transform.ts
 var import_faro_core2 = require("@grafana/faro-core");
+var import_semantic_conventions = require("@opentelemetry/semantic-conventions");
+
+// src/payload/attribute/attributeUtils.ts
+var import_faro_core = require("@grafana/faro-core");
+function toAttributeValue(value) {
+  if ((0, import_faro_core.isString)(value)) {
+    return { stringValue: value };
+  }
+  if ((0, import_faro_core.isInt)(value)) {
+    return { intValue: value };
+  }
+  if ((0, import_faro_core.isNumber)(value)) {
+    return { doubleValue: value };
+  }
+  if ((0, import_faro_core.isBoolean)(value)) {
+    return { boolValue: value };
+  }
+  if ((0, import_faro_core.isArray)(value)) {
+    return { arrayValue: { values: value.map(toAttributeValue) } };
+  }
+  if (value instanceof Uint8Array) {
+    return { bytesValue: value };
+  }
+  if ((0, import_faro_core.isObject)(value)) {
+    return {
+      kvlistValue: {
+        values: Object.entries(value).map(([attributeName, attributeValue]) => toAttribute(attributeName, attributeValue)).filter(isAttribute)
+      }
+    };
+  }
+  return {};
+}
+function toAttribute(attributeName, attributeValue) {
+  if (attributeValue == null || attributeValue === "") {
+    return void 0;
+  }
+  return {
+    key: attributeName,
+    value: toAttributeValue(attributeValue)
+  };
+}
+function isAttribute(item) {
+  return Boolean(item) && typeof item?.key === "string" && typeof item?.value !== "undefined";
+}
 
 // src/payload/config/config.ts
 function defaultLabels(meta) {
@@ -168,19 +132,19 @@ var fmt = {
 // src/payload/transform/transform.ts
 function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   function toLogLogValue(payload) {
-    const { timestamp, trace: trace2, message, context: context2 } = payload;
+    const { timestamp, trace, message, context } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
       fmt.stringify({
         message,
-        context: JSON.stringify(context2),
-        ...trace2 && { traceId: trace2.trace_id }
+        context: JSON.stringify(context),
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
   function toErrorLogValue(payload) {
-    const { timestamp, trace: trace2, type, value, stacktrace } = payload;
+    const { timestamp, trace, type, value, stacktrace } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
@@ -188,12 +152,12 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
         type,
         value,
         stacktrace: JSON.stringify(stacktrace),
-        ...trace2 && { traceId: trace2.trace_id }
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
   function toEventLogValue(payload) {
-    const { timestamp, trace: trace2, name, attributes, domain } = payload;
+    const { timestamp, trace, name, attributes, domain } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
@@ -201,19 +165,19 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
         name,
         attributes: JSON.stringify(attributes),
         ...domain && { domain },
-        ...trace2 && { traceId: trace2.trace_id }
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
   function toMeasurementLogValue(payload) {
-    const { timestamp, trace: trace2, type, values } = payload;
+    const { timestamp, trace, type, values } = payload;
     const timeUnixNano = toTimeUnixNano(timestamp);
     return [
       timeUnixNano.toString(),
       fmt.stringify({
         type,
         values: JSON.stringify(values),
-        ...trace2 && { traceId: trace2.trace_id }
+        ...trace && { traceId: trace.trace_id }
       })
     ];
   }
@@ -266,18 +230,46 @@ function getLogTransforms(internalLogger, getLabelsFromMeta = defaultLabels) {
   }
   return { toLogValue, toLogLabels };
 }
-function getTraceTransforms(internalLogger) {
-  function toSpanValue(transportItem) {
-    const { type } = transportItem;
-    switch (type) {
-      case import_faro_core2.TransportItemType.TRACE:
-        return void 0;
-      default:
-        internalLogger?.error(`Unknown TransportItemType: ${type}`);
-        return void 0;
-    }
+var SemanticBrowserAttributes = {
+  BROWSER_BRANDS: "browser.brands",
+  BROWSER_PLATFORM: "browser.platform",
+  BROWSER_MOBILE: "browser.mobile",
+  BROWSER_USER_AGENT: "browser.user_agent",
+  BROWSER_LANGUAGE: "browser.language"
+};
+function getTraceTransforms(_internalLogger) {
+  function toResourceSpan(transportItem) {
+    const resource = toResource(transportItem);
+    const scopeSpans = transportItem.payload.resourceSpans?.[0]?.scopeSpans;
+    return {
+      resource,
+      scopeSpans: scopeSpans ?? []
+    };
   }
-  return { toSpanValue };
+  return { toResourceSpan };
+}
+function toResource(transportItem) {
+  const { browser, sdk, app } = transportItem.meta;
+  return {
+    attributes: [
+      toAttribute(SemanticBrowserAttributes.BROWSER_MOBILE, browser?.mobile),
+      toAttribute(SemanticBrowserAttributes.BROWSER_USER_AGENT, browser?.userAgent),
+      toAttribute(SemanticBrowserAttributes.BROWSER_LANGUAGE, browser?.language),
+      toAttribute(SemanticBrowserAttributes.BROWSER_BRANDS, browser?.brands),
+      toAttribute("browser.os", browser?.os),
+      toAttribute("browser.name", browser?.name),
+      toAttribute("browser.version", browser?.version),
+      toAttribute(import_semantic_conventions.SemanticResourceAttributes.TELEMETRY_SDK_NAME, sdk?.name),
+      toAttribute(import_semantic_conventions.SemanticResourceAttributes.TELEMETRY_SDK_VERSION, sdk?.version),
+      sdk ? toAttribute(
+        import_semantic_conventions.SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE,
+        import_semantic_conventions.TelemetrySdkLanguageValues.WEBJS
+      ) : void 0,
+      toAttribute(import_semantic_conventions.SemanticResourceAttributes.SERVICE_NAME, app?.name),
+      toAttribute(import_semantic_conventions.SemanticResourceAttributes.SERVICE_VERSION, app?.version),
+      toAttribute(import_semantic_conventions.SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT, app?.environment)
+    ].filter(isAttribute)
+  };
 }
 
 // src/payload/QrynPayload.ts
@@ -327,6 +319,8 @@ var QrynPayload = class {
           break;
         }
         case import_faro_core3.TransportItemType.TRACE: {
+          const { toResourceSpan } = this.getTraceTransforms;
+          this.resourceSpans.push(toResourceSpan(transportItem));
           break;
         }
         default:
@@ -473,7 +467,6 @@ var QrynTransport = class extends import_faro_core4.BaseTransport {
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  QrynTransport,
-  TracingInstrumentation
+  QrynTransport
 });
 //# sourceMappingURL=index.js.map
