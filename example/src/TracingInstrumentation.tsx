@@ -1,4 +1,4 @@
-import { faro } from '@grafana/faro-web-sdk'
+import { faro } from './faro'
 
 export function TracingInstrumentation() {
   const fetchSuccess = () => {
@@ -6,13 +6,12 @@ export function TracingInstrumentation() {
   }
 
   const traceWithLog = () => {
-    const otel = faro.api.getOTEL()
-
+    const otel = faro?.api.getOTEL()
     if (otel) {
       const span = otel.trace.getTracer('frontend').startSpan('trace with log')
 
       otel.context.with(otel.trace.setSpan(otel.context.active(), span), () => {
-        faro.api.pushLog(['trace with log button clicked'])
+        faro?.api.pushLog(['trace with log button clicked'])
         span.end()
       })
     }

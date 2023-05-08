@@ -2,9 +2,9 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { faro } from '@grafana/faro-web-sdk'
 import { ThrowError } from './ThrowError'
 import { TracingInstrumentation } from './TracingInstrumentation'
+import { faro } from './faro'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -23,7 +23,8 @@ function App() {
       <div className="card">
         <button
           onClick={() => {
-            faro.api.pushEvent('Count pressed', { count: count.toString() }, 'example')
+            // logger?.pushEvent('Count pressed', { count: count.toString() }, 'example')
+            faro?.api.pushEvent('Count pressed', { count: count.toString() }, 'example')
 
             setCount(count => count + 1)
           }}
