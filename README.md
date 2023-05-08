@@ -6,11 +6,12 @@ Send logs, errors, events, metrics and traces captured by the faro-web-sdk instr
 
 If you still don't have one [create your free account](https://app.gigapipe.com/signup) on Gigapipe and get access to [qryn Cloud](https://gigapipe.com/qryn/).
 
-Create your first project, enable qryn and make sure to have an `API Token` with write permissions.
+Create your first project, enable qryn and make sure to create an `API Token` with write permissions.
 
 ### Installation
 
-TBD: let's see how do we want to distribute this
+> **Note:**
+> The library hasn't been published to NPM yet. We are finishing the latest touches to offer the best DX.
 
 ```bash
 pnpm add @gigapipe/faro-transport-qryn
@@ -69,7 +70,7 @@ const tracingInstrumentation = new TracingInstrumentation({
 Finally initialize Faro with your configuration.
 
 > **Note:**
-> qryn Cloud supports batch ingestion by default, but if you want also to minimize the number of requests done from your client you can use the `@grafana/faro-transport-batch`.
+> qryn Cloud supports batch ingestion by default, but if you want also to minimize the number of requests done from your client you can use the experimental `@grafana/faro-transport-batch`.
 
 ```typescript
 initializeFaro({
