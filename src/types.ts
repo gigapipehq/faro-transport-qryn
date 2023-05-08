@@ -8,9 +8,6 @@ import {
   type TransportItem as FaroTransportItem,
   TransportItemType,
 } from '@grafana/faro-core'
-import type { ContextManager, TextMapPropagator } from '@opentelemetry/api'
-import type { InstrumentationOption } from '@opentelemetry/instrumentation'
-import type { ResourceAttributes } from '@opentelemetry/resources'
 
 export type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
@@ -79,48 +76,6 @@ export type LogTransportItem =
 export type TraceTransportItem = { type: TransportItemType.TRACE } & FaroTransportItem<TraceEvent>
 
 export type TransportItem = LogTransportItem | TraceTransportItem
-
-export type TracingInstrumentationOptions = {
-  /**
-   * The qryn Cloud host URL
-   */
-  host: string
-  /**
-   * The qryn Cloud token with write permissions.
-   *
-   * It will be added as `X-API-Token` header
-   */
-  apiToken: string
-  /**
-   * Resource attributes passed to the default Resource of `@opentelemetry/resources`
-   */
-  resourceAttributes?: ResourceAttributes
-  /**
-   * Propagator to use as the global propagator
-   *
-   * @default W3CTraceContextPropagator
-   */
-  propagator?: TextMapPropagator
-  /**
-   * Context manager to use as the global context manager
-   *
-   * @default ZoneContextManager
-   */
-  contextManager?: ContextManager
-  /**
-   * Customize the list of tracing instrumentations
-   *
-   * @default
-   * [ DocumentLoadInstrumentation, FetchInstrumentation, XMLHttpRequestInstrumentation, UserInteractionInstrumentation]`
-   */
-  instrumentations?: InstrumentationOption[]
-  /**
-   * Options used to configure the default `FetchInstrumentation` and `XMLHttpRequestInstrumentation`
-   */
-  instrumentationOptions?: {
-    propagateTraceHeaderCorsUrls: MatchUrlDefinitions
-  }
-}
 
 export type GetLabelsFromMeta = (meta: Meta) => Record<string, string>
 export type MatchUrlDefinitions = Array<string | RegExp>

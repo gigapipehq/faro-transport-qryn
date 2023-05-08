@@ -46,26 +46,11 @@ const qrynTransport = new QrynTransport({
 | concurrency               | Number of requests to execute concurrently                                                                                       |          | 5                                                   |
 | defaultRateLimitBackoffMs | If a rate limit response does not include a `Retry-After` header. How many milliseconds to back off before attempting a request. |          | 5000                                                |
 
-If you want to support _traces_ create an instance of our custom `TracingInstrumentation`.
+If you want to support OpenTelemetry _traces_ create an instance of `TracingInstrumentation` from `@grafana/faro-web-tracing` [docs](https://github.com/grafana/faro-web-sdk/blob/main/packages/web-tracing/README.md).
 
 ```typescript
-const tracingInstrumentation = new TracingInstrumentation({
-  host: YOUR_QRYN_HOST,
-  apiToken: YOUR_QRYN_API_TOKEN,
-})
+const tracingInstrumentation = new TracingInstrumentation()
 ```
-
-**Configuration**
-
-| Option                 | Description                                                                                                   | Required | Default                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| host                   | The qryn Cloud host URL                                                                                       | \*       |                                                                                                                       |
-| apiToken               | The qryn Cloud token with write permissions.                                                                  | \*       |                                                                                                                       |
-| resourceAttributes     | Resource attributes passed to the default Resource of `@opentelemetry/resources`                              |          |                                                                                                                       |
-| propagator             | Propagator to use as the global propagator                                                                    |          | `W3CTraceContextPropagator`                                                                                           |
-| contextManager         | Context manager to use as the global context manager                                                          |          | `ZoneContextManager`                                                                                                  |
-| instrumentations       | Customize the list of tracing instrumentations                                                                |          | `[ DocumentLoadInstrumentation, FetchInstrumentation, XMLHttpRequestInstrumentation, UserInteractionInstrumentation]` |
-| instrumentationOptions | Options used to configure the default `FetchInstrumentation` and `XMLHttpRequestInstrumentation` permissions. |          |                                                                                                                       |
 
 Finally initialize Faro with your configuration.
 
