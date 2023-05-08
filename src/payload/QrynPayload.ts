@@ -1,13 +1,12 @@
 import { type InternalLogger, TransportItemType } from '@grafana/faro-core'
 import compare from 'just-compare'
 
+import type { GetLabelsFromMeta, TransportItem } from '../types'
 import {
-  type GetLabelsFromMeta,
   getLogTransforms,
   getTraceTransforms,
   type LogsTransform,
   type TraceTransform,
-  TransportItem,
 } from './transform'
 import type { QrynTransportPayload } from './types'
 
@@ -75,9 +74,9 @@ export class QrynPayload {
           break
         }
         case TransportItemType.TRACE: {
-          // A the moment we can only use the `/tempo/spans` endpoint which accepts only ReadableSpan[]
-          // As a workaround we have created a custom TracingInstrumentation that uses the Zipkin exporter to directly push spans to that endpoint overruling Faro API.
-          // In order to use a single transport qryn should support the OTLP API `/v1/traces`
+          const { toResourceSpan } = this.getTraceTransforms
+
+          this.resourceSpans.push(toResourceSpan(transportItem))
           break
         }
         default:

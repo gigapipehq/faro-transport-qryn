@@ -2,8 +2,8 @@ import { LogLevel, TransportItemType } from '@grafana/faro-core'
 import { describe, expect, it } from 'vitest'
 
 import { mockInternalLogger } from '../../test-utils'
+import type { LogTransportItem } from '../../types'
 import { getLogTransforms } from './transform'
-import { type LogTransportItem } from './types'
 
 const logItem: LogTransportItem = {
   type: TransportItemType.LOG,

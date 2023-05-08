@@ -2,8 +2,8 @@ import { TransportItemType } from '@grafana/faro-core'
 import { describe, expect, it } from 'vitest'
 
 import { mockInternalLogger } from '../test-utils'
+import type { LogTransportItem } from '../types'
 import { QrynPayload } from './QrynPayload'
-import { LogTransportItem } from './transform'
 
 describe('QrynPayload', () => {
   const logTransportItem: LogTransportItem = {

@@ -1,9 +1,9 @@
 import { LogLevel, TransportItemType } from '@grafana/faro-core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { LogTransportItem } from './payload/transform'
 import { mockInternalLogger } from './test-utils'
 import { QrynTransport } from './transport'
+import type { LogTransportItem } from './types'
 
 const logTransportItem: LogTransportItem = {
   type: TransportItemType.LOG,

@@ -7,8 +7,7 @@ import {
 } from '@grafana/faro-core'
 
 import { QrynPayload, type QrynTransportPayload } from './payload'
-import { type GetLabelsFromMeta, TransportItem } from './payload/transform'
-import type { QrynLokiTransportOptions } from './types'
+import type { GetLabelsFromMeta, QrynLokiTransportOptions, TransportItem } from './types'
 
 const DEFAULT_BUFFER_SIZE = 30
 const DEFAULT_CONCURRENCY = 5 // chrome supports 10 total, firefox 17

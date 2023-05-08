@@ -1,8 +1,16 @@
+import {
+  type EventEvent,
+  type ExceptionEvent,
+  type LogEvent,
+  type MeasurementEvent,
+  Meta,
+  TraceEvent,
+  type TransportItem as FaroTransportItem,
+  TransportItemType,
+} from '@grafana/faro-core'
 import type { ContextManager, TextMapPropagator } from '@opentelemetry/api'
 import type { InstrumentationOption } from '@opentelemetry/instrumentation'
 import type { ResourceAttributes } from '@opentelemetry/resources'
-
-import { type GetLabelsFromMeta } from './payload/transform'
 
 export type QrynLokiTransportRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
@@ -50,6 +58,8 @@ export type QrynLokiTransportOptions = {
   /**
    * Function used to create the labels from the meta data.
    *
+   * This will be used for logs, errors, events and measurements.
+   *
    * @default (meta) => ({
    *    app: meta.app.name,
    *    environment: meta.app.environment,
@@ -60,6 +70,15 @@ export type QrynLokiTransportOptions = {
    */
   getLabelsFromMeta?: GetLabelsFromMeta
 }
+
+export type LogTransportItem =
+  | ({ type: TransportItemType.LOG } & FaroTransportItem<LogEvent>)
+  | ({ type: TransportItemType.EXCEPTION } & FaroTransportItem<ExceptionEvent>)
+  | ({ type: TransportItemType.EVENT } & FaroTransportItem<EventEvent>)
+  | ({ type: TransportItemType.MEASUREMENT } & FaroTransportItem<MeasurementEvent>)
+export type TraceTransportItem = { type: TransportItemType.TRACE } & FaroTransportItem<TraceEvent>
+
+export type TransportItem = LogTransportItem | TraceTransportItem
 
 export type TracingInstrumentationOptions = {
   /**
@@ -103,5 +122,6 @@ export type TracingInstrumentationOptions = {
   }
 }
 
+export type GetLabelsFromMeta = (meta: Meta) => Record<string, string>
 export type MatchUrlDefinitions = Array<string | RegExp>
 export type ClockFn = () => number

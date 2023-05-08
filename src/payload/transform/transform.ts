@@ -1,23 +1,23 @@
 /* eslint-disable consistent-return */
 import {
-  EventEvent,
-  ExceptionEvent,
-  InternalLogger,
-  LogEvent,
+  type EventEvent,
+  type ExceptionEvent,
+  type InternalLogger,
+  type LogEvent,
   LogLevel,
-  MeasurementEvent,
-  TransportItem,
+  type MeasurementEvent,
+  type TransportItem,
   TransportItemType,
 } from '@grafana/faro-core'
+import {
+  SemanticResourceAttributes,
+  TelemetrySdkLanguageValues,
+} from '@opentelemetry/semantic-conventions'
 
+import type { GetLabelsFromMeta, LogTransportItem, TraceTransportItem } from '../../types'
+import { isAttribute, toAttribute } from '../attribute'
 import { defaultLabels } from '../config'
-import type {
-  GetLabelsFromMeta,
-  LogsTransform,
-  LogTransportItem,
-  LogValue,
-  TraceTransportItem,
-} from './types'
+import type { LogsTransform, LogValue, Resource, ResourceSpans, TraceTransform } from './types'
 import { fmt } from './utils'
 
 export function getLogTransforms(
@@ -135,17 +135,63 @@ export function getLogTransforms(
   return { toLogValue, toLogLabels }
 }
 
-export function getTraceTransforms(internalLogger: InternalLogger) {
-  function toSpanValue(transportItem: TraceTransportItem): undefined {
-    const { type } = transportItem
-    switch (type) {
-      case TransportItemType.TRACE:
-        return undefined
+/**
+ * Seems currently to be missing in the semantic-conventions npm package.
+ * See: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/semantic_conventions/README.md#todos
+ *
+ * Attributes are as defined by the Otel docs
+ */
+const SemanticBrowserAttributes = {
+  BROWSER_BRANDS: 'browser.brands',
+  BROWSER_PLATFORM: 'browser.platform',
+  BROWSER_MOBILE: 'browser.mobile',
+  BROWSER_USER_AGENT: 'browser.user_agent',
+  BROWSER_LANGUAGE: 'browser.language',
+} as const
 
-      default:
-        internalLogger?.error(`Unknown TransportItemType: ${type}`)
-        return undefined
+export function getTraceTransforms(_internalLogger: InternalLogger): TraceTransform {
+  function toResourceSpan(transportItem: TraceTransportItem): ResourceSpans {
+    const resource = toResource(transportItem)
+    const scopeSpans = transportItem.payload.resourceSpans?.[0]?.scopeSpans
+
+    return {
+      resource,
+      scopeSpans: scopeSpans ?? [],
     }
   }
-  return { toSpanValue }
+
+  return { toResourceSpan }
+}
+
+/**
+ * Function borrowed from @grafana/transport-otlp-http package
+ *
+ * source: https://github.com/grafana/faro-web-sdk/blob/ddf9dcbbe188c7184e03558bb27443e00042d9d4/experimental/transport-otlp-http/src/payload/transform/transform.ts#L201
+ *
+ */
+function toResource(transportItem: TraceTransportItem): Readonly<Resource> {
+  const { browser, sdk, app } = transportItem.meta
+  return {
+    attributes: [
+      toAttribute(SemanticBrowserAttributes.BROWSER_MOBILE, browser?.mobile),
+      toAttribute(SemanticBrowserAttributes.BROWSER_USER_AGENT, browser?.userAgent),
+      toAttribute(SemanticBrowserAttributes.BROWSER_LANGUAGE, browser?.language),
+      toAttribute(SemanticBrowserAttributes.BROWSER_BRANDS, browser?.brands),
+      toAttribute('browser.os', browser?.os),
+      toAttribute('browser.name', browser?.name),
+      toAttribute('browser.version', browser?.version),
+
+      toAttribute(SemanticResourceAttributes.TELEMETRY_SDK_NAME, sdk?.name),
+      toAttribute(SemanticResourceAttributes.TELEMETRY_SDK_VERSION, sdk?.version),
+      sdk
+        ? toAttribute(
+            SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE,
+            TelemetrySdkLanguageValues.WEBJS,
+          )
+        : undefined,
+      toAttribute(SemanticResourceAttributes.SERVICE_NAME, app?.name),
+      toAttribute(SemanticResourceAttributes.SERVICE_VERSION, app?.version),
+      toAttribute(SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT, app?.environment),
+    ].filter(isAttribute),
+  }
 }
